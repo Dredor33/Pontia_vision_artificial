@@ -104,7 +104,7 @@ CREATE TABLE VENTAS (
     t_id VARCHAR(40),
     tienda_id TINYINT,
     fecha_hora_venta DATETIME,
-	precio_venta DECIMAL(20,16),
+	precio_venta VARCHAR(20), -- se inicializa como VARCHAR porque DECIMAL no permite valores vacios, en la carga lo solventamos
 	FOREIGN KEY (t_id) REFERENCES PRODUCTOS(t_id),
     FOREIGN KEY (tienda_id) REFERENCES TABLA_TIENDA(tienda_id)
 );
@@ -171,7 +171,7 @@ WHERE t_id IN (
 );
 SET SQL_SAFE_UPDATES = 1;
 SELECT * FROM VENTAS WHERE precio_venta IS NULL;
-ALTER TABLE VENTAS MODIFY precio_venta DECIMAL(18,6) NULL;
+ALTER TABLE VENTAS MODIFY precio_venta DECIMAL(20,16) NULL;
 SELECT * FROM VENTAS WHERE precio_venta IS NOT NULL;
 
 
