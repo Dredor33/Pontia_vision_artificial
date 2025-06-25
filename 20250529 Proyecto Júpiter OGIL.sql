@@ -24,9 +24,11 @@ DROP DATABASE IF EXISTS VA_Pontia_Logistica;
 
 CREATE SCHEMA VA_Pontia_Logistica;
 
-# para entrar en esta base de datos
+-- para entrar en esta base de datos
 USE VA_Pontia_Logistica;
 ######################################################################################################################################
+
+-- Para poder importar archivos y ver la ruta permitida en MySQL Workbench
 
 SET SQL_SAFE_UPDATES = 0;
 SHOW GLOBAL VARIABLES LIKE 'local_infile';
@@ -38,16 +40,42 @@ SHOW VARIABLES LIKE 'secure_file_priv';
 
 ################################
 
+-- Empezamos con las tablas de apoyo
+
+DROP TABLE IF EXISTS TABLA_MARCA;
+
 CREATE TABLE TABLA_MARCA (
     marca_id TINYINT PRIMARY KEY, -- yo haria un AUTO_INCREMENT PRIMARY KEY para que se pueda incorporar nuevos tipos
     marca_fruta VARCHAR(20)
 );
 
+DROP TABLE IF EXISTS TABLA_TIPO;
 
 CREATE TABLE TABLA_TIPO (
      tipo_id TINYINT PRIMARY KEY, -- yo haria un AUTO_INCREMENT PRIMARY KEY para que se pueda incorporar nuevos tipos
      tipo_fruta VARCHAR(25)
 );
+
+DROP TABLE IF EXISTS TABLA_TIENDA;
+
+CREATE TABLE TABLA_TIENDA (
+    tienda_id TINYINT PRIMARY KEY,
+	tienda_nombre VARCHAR(40)
+);
+
+DROP TABLE IF EXISTS TABLA_PROVEEDOR;
+
+CREATE TABLE TABLA_PROVEEDOR (
+	proveedor_id TINYINT PRIMARY KEY,
+    proveedor_nombre VARCHAR(50)
+);
+
+
+################################
+
+-- Continuamos con las tablas principales
+
+DROP TABLE IF EXISTS PRODUCTOS;
 
 CREATE TABLE PRODUCTOS (
     t_id VARCHAR(40) PRIMARY KEY,
@@ -60,13 +88,11 @@ CREATE TABLE PRODUCTOS (
 );
 
 ################################
-
-################################
 -- Tenemos problemas a la hora de importar la tabla de COMPRAS ya que el coste_inical incluye casillas vacias
 -- Por lo que creamos una tabla temporal, para analizar el errror
 
 /*
-DROP TABLE compras_temp;
+DROP TABLE IF EXISTS compras_temp;
 CREATE TEMPORARY TABLE compras_temp (
     t_id VARCHAR(40),
     proveedor TINYINT,
@@ -75,39 +101,30 @@ CREATE TEMPORARY TABLE compras_temp (
 );
 */
 
-CREATE TABLE TABLA_PROVEEDOR (
-	proveedor_id TINYINT PRIMARY KEY,
-    proveedor_nombre VARCHAR(50)
-);
+################################
+
+DROP TABLE IF EXISTS COMPRAS;
 
 CREATE TABLE COMPRAS (
     t_id VARCHAR(40),
 	proveedor_id TINYINT,
-	coste_inicial VARCHAR(20), -- yo haria un DECIMAl (10,2)
+	coste_inicial DECIMAL(20,16),
 	fecha_hora_recogida DATETIME,
 	FOREIGN KEY (t_id) REFERENCES PRODUCTOS(t_id),
     FOREIGN KEY (proveedor_id) REFERENCES TABLA_PROVEEDOR(proveedor_id)
 );
 
-################################
-
-################################
-
-CREATE TABLE TABLA_TIENDA (
-    tienda_id TINYINT PRIMARY KEY,
-	tienda_nombre VARCHAR(40)
-);
+DROP TABLE IF EXISTS VENTAS;
 
 CREATE TABLE VENTAS (
     t_id VARCHAR(40),
     tienda_id TINYINT,
     fecha_hora_venta DATETIME,
-	precio_venta VARCHAR(20),
+	precio_venta DECIMAL(20,16),
 	FOREIGN KEY (t_id) REFERENCES PRODUCTOS(t_id),
     FOREIGN KEY (tienda_id) REFERENCES TABLA_TIENDA(tienda_id)
 );
 
-################################
 
 
 ###############################################
