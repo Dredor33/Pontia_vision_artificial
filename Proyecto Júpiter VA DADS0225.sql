@@ -87,28 +87,12 @@ CREATE TABLE PRODUCTOS (
     FOREIGN KEY (tipo_id) REFERENCES TABLA_TIPO(tipo_id)
 );
 
-################################
--- Tenemos problemas a la hora de importar la tabla de COMPRAS ya que el coste_inical incluye casillas vacias
--- Por lo que creamos una tabla temporal, para analizar el errror
-
-/*
-DROP TABLE IF EXISTS compras_temp;
-CREATE TEMPORARY TABLE compras_temp (
-    t_id VARCHAR(40),
-    proveedor TINYINT,
-    coste_inicial VARCHAR(20), -- Lo declaramos como VARCHAR para evitar problemas de importación
-    fecha_hora_recogida DATETIME
-);
-*/
-
-################################
-
 DROP TABLE IF EXISTS COMPRAS;
 
 CREATE TABLE COMPRAS (
     t_id VARCHAR(40),
 	proveedor_id TINYINT,
-	coste_inicial DECIMAL(20,16),
+	coste_inicial VARCHAR(20), -- se inicializa como VARCHAR porque DECIMAL no permite valores vacios, en la carga lo solventamos
 	fecha_hora_recogida DATETIME,
 	FOREIGN KEY (t_id) REFERENCES PRODUCTOS(t_id),
     FOREIGN KEY (proveedor_id) REFERENCES TABLA_PROVEEDOR(proveedor_id)
@@ -140,17 +124,6 @@ IGNORE 1 ROWS;
 
 SELECT * FROM PRODUCTOS LIMIT 10;
 
-LOAD DATA INFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/compras.csv'
-INTO TABLE compras_temp
-FIELDS TERMINATED BY ',' 
-ENCLOSED BY '"' 
-LINES TERMINATED BY '\n'
-IGNORE 1 ROWS
-(t_id, proveedor, coste_inicial, fecha_hora_recogida);
-
-SELECT * FROM compras_temp WHERE coste_inicial NOT REGEXP '^[0-9]+(\.[0-9]+)?$';
--- Se puede observar que existen casos en los que el coste_inicial está vacio.
-
 
 LOAD DATA INFILE 'C:/ProgramData/MySQL/MySQL Server 8.0/Uploads/compras.csv'
 INTO TABLE COMPRAS
@@ -158,12 +131,14 @@ FIELDS TERMINATED BY ','
 ENCLOSED BY '"' 
 LINES TERMINATED BY '\n'
 IGNORE 1 ROWS
-(t_id, proveedor, coste_inicial, fecha_hora_recogida)
+(t_id, proveedor_id, coste_inicial, fecha_hora_recogida)
 SET coste_inicial = NULLIF(coste_inicial, '');
 
 SELECT * FROM COMPRAS LIMIT 10;
 
 SET SQL_SAFE_UPDATES = 0;
+
+-- Cambiamos a NULL los valores vacios para poder cambiarlo luego a DECIMAL
 
 UPDATE COMPRAS 
 SET coste_inicial = NULL 
@@ -172,7 +147,7 @@ WHERE t_id IN (
 );
 SET SQL_SAFE_UPDATES = 1;
 SELECT * FROM COMPRAS WHERE coste_inicial IS NULL;
-ALTER TABLE COMPRAS MODIFY coste_inicial DECIMAL(18,6) NULL;
+ALTER TABLE COMPRAS MODIFY coste_inicial DECIMAL(20,16) NULL;
 SELECT * FROM COMPRAS WHERE coste_inicial IS NOT NULL;
 
 
