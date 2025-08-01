@@ -230,65 +230,83 @@ SELECT * FROM VENTAS WHERE precio_venta IS NOT NULL;
 
 -- Calcular la media diaria de la cuantía de las distribuciones
 
-SELECT AVG(total_dia) AS media_diaria
-FROM(SELECT DATE (fecha_hora_venta) AS fecha, SUM(precio_venta) AS total_dia
+SELECT ROUND(AVG(total_dia),2) AS total_venta_media_diaria
+FROM(SELECT DATE (fecha_hora_venta) AS fecha, sum(precio_venta) AS total_dia
 FROM VENTAS
 WHERE precio_venta IS NOT NULL
 GROUP BY DATE(fecha_hora_venta))
 AS venta_por_dia;
 
-SELECT DATE(fecha_hora_venta) AS fecha, AVG(precio_venta) AS media_diaria
+-- adicional, media diaria de ventas
+
+SELECT DATE(fecha_hora_venta) AS fecha, ROUND(AVG(precio_venta),2) AS media_diaria_ventas
 FROM VENTAS
 WHERE precio_venta IS NOT NULL
 GROUP BY DATE(fecha_hora_venta)
 ORDER BY fecha;
 
+
 -- Calcular la cuantía total de las distribuciones 
-SELECT SUM(precio_venta) AS cuantia_total_distribuciones
+
+SELECT ROUND(SUM(precio_venta),2) AS cuantia_total_distribuciones
 FROM VENTAS
 WHERE precio_venta IS NOT NULL;
 
 -- ¿Qué días del mes se han producido más distribuciones y cuántas?
--- Deberíamos eliminar aquellas fechas de Agosto y Octubre
 
 SELECT DAY(fecha_hora_venta) AS dia, COUNT(*) AS total_distribuciones
 FROM VENTAS
 WHERE fecha_hora_venta IS NOT NULL
+    AND MONTH(fecha_hora_venta) = 9
 GROUP BY DAY(fecha_hora_venta)
-ORDER BY total_distribuciones DESC;
+HAVING COUNT(*) = (
+    SELECT MAX(distribuciones_por_dia)
+    FROM (
+        SELECT COUNT(*) AS distribuciones_por_dia
+        FROM VENTAS
+        WHERE fecha_hora_venta IS NOT NULL
+            AND MONTH(fecha_hora_venta) = 9
+        GROUP BY DAY(fecha_hora_venta)
+    ) AS maxima_distribucion_dia
+)
+ORDER BY dia;
+
 
 -- ¿A qué horas del día se producen más recogidas de alimentos y cuántas? 
 
 SELECT HOUR(fecha_hora_recogida) AS hora, COUNT(*) AS total_recogidas
 FROM COMPRAS
 WHERE fecha_hora_recogida IS NOT NULL
-AND MONTH(fecha_hora_recogida) = 9
+  AND MONTH(fecha_hora_recogida) = 9
 GROUP BY HOUR(fecha_hora_recogida)
-ORDER BY total_recogidas DESC;
+HAVING COUNT(*) = (
+    SELECT MAX(recogidas_por_hora)
+    FROM (
+        SELECT COUNT(*) AS recogidas_por_hora
+        FROM COMPRAS
+        WHERE fecha_hora_recogida IS NOT NULL
+          AND MONTH(fecha_hora_recogida) = 9
+        GROUP BY HOUR(fecha_hora_recogida)
+    ) as cantidad_maxima_recogida
+)
+ORDER BY hora;
+
 
 -- ¿Cuáles son los 5 clientes que más dinero han gastado comprando la fruta y cuánto?
--- En primer lugar relacionamos la tabla de tienda con la de ventas
-SELECT v.tienda, tt.tienda AS nombre_tienda, v.precio_venta
+
+SELECT tt.tienda AS nombre_tienda, ROUND(SUM(v.precio_venta),2) AS total_tienda
 FROM VENTAS v
-JOIN TABLA_TIENDA tt
-ON v.tienda=tt.número_asignado_tienda;
--- Después realizamos el cálculo
-SELECT tt.tienda AS nombre_tienda, SUM(v.precio_venta) AS total_tienda
-FROM VENTAS v
-JOIN TABLA_TIENDA tt
+INNER JOIN TABLA_TIENDA tt
 ON v.tienda=tt.número_asignado_tienda
 WHERE v.precio_venta IS NOT NULL
 GROUP BY tt.tienda
 ORDER BY total_tienda DESC
 LIMIT 5;
 
--- ¿Cuáles son los 5 clientes que menos dinero han gastado comprando la fruta y cuánto? 
-SELECT v.tienda, tt.tienda AS nombre_tienda, v.precio_venta
-FROM VENTAS v
-JOIN TABLA_TIENDA tt
-ON v.tienda=tt.número_asignado_tienda;
 
-SELECT tt.tienda AS nombre_tienda, SUM(v.precio_venta) AS total_tienda
+-- ¿Cuáles son los 5 clientes que menos dinero han gastado comprando la fruta y cuánto? 
+
+SELECT tt.tienda AS nombre_tienda, ROUND(SUM(v.precio_venta),2) AS total_tienda
 FROM VENTAS v
 JOIN TABLA_TIENDA tt
 ON v.tienda=tt.número_asignado_tienda
@@ -297,13 +315,11 @@ GROUP BY tt.tienda
 ORDER BY total_tienda ASC
 LIMIT 5;
 
--- ¿Cuáles son los 10 proveedores que han recibido más dinero y cuánto?
-SELECT c.proveedor, tp.proveedor AS nombre_proveedor, c.coste_inicial
-FROM COMPRAS c
-JOIN TABLA_PROVEEDOR tp
-ON c.proveedor=tp.número_asignado_proveedor;
 
-SELECT tp.proveedor AS nombre_proveedor, SUM(c.coste_inicial) AS total_proveedor
+-- ¿Cuáles son los 10 proveedores que han recibido más dinero y cuánto?
+
+
+SELECT tp.proveedor AS nombre_proveedor, ROUND(SUM(c.coste_inicial),2) AS total_proveedor
 FROM COMPRAS c
 JOIN TABLA_PROVEEDOR tp
 ON c.proveedor=tp.número_asignado_proveedor
@@ -316,7 +332,7 @@ LIMIT 10;
 -- restarle al coste de venta el precio de compra se quedan con un mejor resultado) y cuál ha sido su balance? 
 -- Filtramos por el mes de Septiembre y por aquellos casos en los que el precio y voste no son nulos.
 
-SELECT tti.tipo AS tipo_producto, SUM(v.precio_venta-c.coste_inicial) AS balance_total
+SELECT tti.tipo AS tipo_producto, ROUND(SUM(v.precio_venta-c.coste_inicial),2) AS balance_total
 FROM PRODUCTOS p
 JOIN TABLA_TIPO tti ON p.tipo=tti.número_asignado_tipo
 JOIN COMPRAS c ON p.t_id=c.t_id
@@ -331,9 +347,27 @@ GROUP BY tti.tipo
 ORDER BY balance_total DESC
 LIMIT 3;
 
+-- adicional, en vez del total que afecta la cantidad vendida, la media de beneficio
+
+SELECT tti.tipo AS tipo_producto, ROUND(AVG(v.precio_venta-c.coste_inicial),2) AS balance_total
+FROM PRODUCTOS p
+JOIN TABLA_TIPO tti ON p.tipo=tti.número_asignado_tipo
+JOIN COMPRAS c ON p.t_id=c.t_id
+JOIN VENTAS v on p.t_id=v.t_id
+WHERE MONTH(c.fecha_hora_recogida)=9
+AND MONTH(v.fecha_hora_venta)=9
+AND c.coste_inicial IS NOT NULL
+AND c.coste_inicial > 0
+AND precio_venta IS NOT NULL
+AND precio_venta > 0
+GROUP BY tti.tipo
+ORDER BY balance_total DESC
+LIMIT 3;
+
+
 -- ¿Cuáles son los 3 productos con peor beneficio a lo largo de todo el mes y cuál ha sido?
 
-SELECT tti.tipo AS tipo_producto, SUM(v.precio_venta-c.coste_inicial) AS balance_total
+SELECT tti.tipo AS tipo_producto, ROUND(SUM(v.precio_venta-c.coste_inicial),2) AS balance_total
 FROM PRODUCTOS p
 JOIN TABLA_TIPO tti ON p.tipo=tti.número_asignado_tipo
 JOIN COMPRAS c ON p.t_id=c.t_id
@@ -348,9 +382,10 @@ GROUP BY tti.tipo
 ORDER BY balance_total ASC
 LIMIT 3;
 
+
 -- ¿Cuál es el precio de venta medio de cada fruta?
 
-SELECT tti.tipo AS tipo_producto, AVG(v.precio_venta) AS precio_medio_venta
+SELECT tti.tipo AS tipo_producto, ROUND(AVG(v.precio_venta),2) AS precio_medio_venta
 FROM PRODUCTOS p
 JOIN TABLA_TIPO tti ON P.tipo=tti.número_asignado_tipo
 JOIN VENTAS v ON p.t_id=v.t_id
@@ -363,24 +398,58 @@ ORDER BY precio_medio_venta ASC;
 -- Suponiendo que si no se dispone de información de venta se trata de una fruta que no 
 -- ha podido venderse por haber sido dañada durante la distribución, ¿cuánta fruta de cada tipo ha sido dañada?
 
--- En ester caso es un COUNT?o lo valoramos por gramos?
-
-SELECT tti.tipo AS tipo_producto, SUM(p.peso) AS cantidad_dañada
+SELECT tti.tipo AS tipo_producto, ROUND(SUM(p.peso),2) AS cantidad_dañada_gr, COUNT(p.peso) AS pedidos_dañados
 FROM productos p
 JOIN tabla_tipo tti ON P.tipo=tti.número_asignado_tipo
 JOIN VENTAS v ON p.t_id=v.t_id
 WHERE MONTH(V.fecha_hora_venta)=9
 AND v.precio_venta IS NULL
 GROUP BY tti.tipo
-ORDER BY cantidad_dañada DESC;
+ORDER BY cantidad_dañada_gr DESC;
+
 
 -- ¿Cuál ha sido la pérdida total de la fruta dañada? 
-SELECT SUM(p.peso) AS perdida_total
+
+SELECT ROUND(SUM(p.peso),2) AS perdida_total_gr, COUNT(p.peso) AS pedidos_dañados
 FROM PRODUCTOS p
 JOIN VENTAS v ON P.t_id=v.t_id
 WHERE v.precio_venta IS NULL;
 
+
 --  ¿Cuál es la cuantía total de cada tipo de fruta que han comprado los 5 clientes que más 
 -- dinero han gastado?
 
+WITH top5_tiendas AS (
+    SELECT tienda
+    FROM VENTAS
+    WHERE precio_venta IS NOT NULL
+     AND precio_venta  > 0
+    GROUP BY tienda
+    ORDER BY SUM(precio_venta) DESC
+    LIMIT 5
+)
 
+SELECT tt.tipo, ROUND(SUM(p.peso),2) AS cantidad_gr
+FROM PRODUCTOS p
+INNER JOIN VENTAS v ON p.t_id = v.t_id
+INNER JOIN top5_tiendas t ON v.tienda = t.tienda
+INNER JOIN TABLA_TIPO tt ON p.tipo = tt.número_asignado_tipo
+WHERE p.peso IS NOT NULL
+ AND p.peso  > 0
+GROUP BY tt.tipo
+ORDER BY cantidad_gr DESC;
+
+
+-- Para cada producto, calcular el porcentaje de beneficio.
+
+SELECT tt.tipo, ROUND(AVG((v.precio_venta - c.coste_inicial) / c.coste_inicial) * 100, 2) AS porcentaje_beneficio_medio
+FROM PRODUCTOS p
+INNER JOIN TABLA_TIPO tt ON p.tipo = tt.número_asignado_tipo
+INNER JOIN COMPRAS c ON p.t_id = c.t_id
+INNER JOIN VENTAS v on p.t_id = v.t_id
+WHERE c.coste_inicial > 0
+  AND c.coste_inicial IS NOT NULL
+  AND v.precio_venta > 0
+  AND v.precio_venta IS NOT NULL
+GROUP BY tt.tipo
+ORDER BY porcentaje_beneficio_medio DESC;
